@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
-  Menu, X, Phone, Mail, ChevronDown, ArrowRight, Siren, Newspaper, HelpCircle, LifeBuoy, Briefcase, Building2, Info,
+  Menu, X, Phone, Mail, ChevronDown, ArrowRight, Siren, Newspaper, HelpCircle, LifeBuoy, Briefcase, Building2, Info, BadgeCheck,
 } from 'lucide-react';
 import { company, services } from '@/lib/site';
 import ServiceIcon from './ServiceIcon';
@@ -23,7 +23,7 @@ const resourceLinks = [
 ];
 
 const mobileLinks = [
-  ['/', 'Home'], ['/services', 'Services'], ['/industries', 'Industries'], ['/academy', 'Academy'],
+  ['/', 'Home'], ['/services', 'Services'], ['/verify', 'Verification'], ['/industries', 'Industries'], ['/academy', 'Academy'],
   ['/insights', 'Insights'], ['/resources', 'Cyber help desk'], ['/about', 'About'], ['/careers', 'Careers'],
   ['/faq', 'FAQ'], ['/contact', 'Contact'],
 ];
@@ -97,6 +97,7 @@ export default function Navbar() {
             <span>{company.iso}</span>
           </div>
           <div className="topbar-right">
+            <Link href="/verify" className="sos-link" style={{ background: "rgba(216,178,90,.15)", borderColor: "var(--gold-500)", color: "var(--gold-200)" }}><BadgeCheck /> Verify Credentials</Link>
             <Link href="/incident-response" className="sos-link"><Siren /> Under attack? Get help</Link>
             <a href={company.phoneHref}><Phone /> {company.phone}</a>
             <a href={`mailto:${company.email}`} className="hide-sm"><Mail /> {company.email}</a>
@@ -130,14 +131,15 @@ export default function Navbar() {
                   ))}
                 </div>
                 <div className="mega-feature">
-                  <span className="eyebrow">24/7 response</span>
-                  <p>Facing an active attack? Our first responders contain the threat and preserve evidence.</p>
-                  <Link href="/incident-response" className="btn btn-gold">Get help now <ArrowRight /></Link>
+                  <span className="eyebrow">Online Verification</span>
+                  <p>Verify Membership ID cards, official certificates & forensic documents instantly.</p>
+                  <Link href="/verify" className="btn btn-gold">Verification Portal <ArrowRight /></Link>
                   <Link href="/services" className="link-arrow light">All services <ArrowRight /></Link>
                 </div>
               </div>
             </Drop>
 
+            <Link href="/verify" className={`nav-link${isActive('/verify') ? ' active' : ''}`}>Verification</Link>
             <Link href="/academy" className={`nav-link${isActive('/academy') ? ' active' : ''}`}>Academy</Link>
 
             <Drop menu={menu} setMenu={setMenu} id="resources" label="Resources" active={groupActive(resourceLinks)}>

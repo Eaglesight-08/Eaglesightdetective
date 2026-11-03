@@ -6,7 +6,7 @@ import { industries } from '@/lib/content';
 import NewsletterForm from './NewsletterForm';
 
 const cols = [
-  ['Services', [...services.map((s) => [`/services/${s.id}`, s.title]), ['/incident-response', 'Incident response'], ['/academy', 'Cyber Academy']]],
+  ['Services', [...services.map((s) => [`/services/${s.id}`, s.title]), ['/verify', 'Verification Portal'], ['/incident-response', 'Incident response'], ['/academy', 'Cyber Academy']]],
   ['Industries', industries.slice(0, 6).map((i) => [`/industries#${i.id}`, i.title])],
   ['Resources', [['/insights', 'Insights & guides'], ['/resources', 'Cyber help desk'], ['/faq', 'FAQ'], ['/insights/ransomware-first-hour', 'Ransomware checklist'], ['/insights/spot-whatsapp-scams', 'Scam awareness']]],
   ['Company', [['/about', 'About us'], ['/careers', 'Careers'], ['/contact', 'Contact'], ['/privacy-policy', 'Privacy policy'], ['/terms', 'Terms of service']]],
@@ -70,7 +70,7 @@ export default function Footer() {
                 investigation support from Pollachi, Coimbatore — for clients across India.
               </p>
               <div className="footer-badges">
-                <span><BadgeCheck /> {company.iso}</span>
+                <span><BadgeCheck /> {company.iso} · Cert {company.isoCertNo}</span>
                 <span><Clock /> 24/7 incident helpline</span>
               </div>
             </div>

@@ -82,7 +82,7 @@ export default function HomePage() {
         <div className="container">
           <div className="section-head reveal">
             <span className="eyebrow">What we do</span>
-            <h2>Four practices, one standard of care</h2>
+            <h2>Five practices, one standard of care</h2>
             <p>From hardening your systems to proving what happened in court, every engagement is run by experienced investigators under a strict NDA.</p>
           </div>
           <div className="reveal"><ServicesExplorer /></div>
@@ -130,7 +130,7 @@ export default function HomePage() {
           <div className="section-head reveal">
             <span className="eyebrow">How we work</span>
             <h2>A forensic process built for the courtroom</h2>
-            <p>Aligned with ISO/IEC 27032 guidance and Indian evidence law, so findings hold up under scrutiny.</p>
+            <p>Aligned with ISO/IEC 27001 standards and Indian evidence law, so findings hold up under scrutiny.</p>
           </div>
           <div className="steps">
             {workflow.map(([title, text], i) => (
@@ -242,8 +242,8 @@ export default function HomePage() {
             <dl className="facts" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <div className="fact"><dt>Corporate CIN</dt><dd style={{ fontSize: 16 }}>{company.cin}</dd></div>
               <div className="fact"><dt>Standard</dt><dd style={{ fontSize: 16 }}>{company.iso}</dd></div>
-              <div className="fact" style={{ borderLeft: 0, borderTop: '1px solid var(--line)' }}><dt>Registered in</dt><dd style={{ fontSize: 16 }}>Tamil Nadu, India</dd></div>
-              <div className="fact" style={{ borderTop: '1px solid var(--line)' }}><dt>Motto</dt><dd style={{ fontSize: 16 }}>Skilled detectives for a safer digital world</dd></div>
+              <div className="fact" style={{ borderLeft: 0, borderTop: '1px solid var(--line)' }}><dt>ISO Cert No</dt><dd style={{ fontSize: 15 }}><a href="/certificates/certificate-25-07-21158235.pdf" target="_blank" rel="noopener noreferrer" style={{ color: "var(--navy-800)", textDecoration: "underline", fontWeight: 700 }}>{company.isoCertNo}</a></dd></div>
+              <div className="fact" style={{ borderTop: '1px solid var(--line)' }}><dt>Verification</dt><dd style={{ fontSize: 15 }}><Link href="/verify" style={{ color: "var(--gold-600)", fontWeight: 700 }}>Verify Online →</Link></dd></div>
             </dl>
           </div>
         </div>

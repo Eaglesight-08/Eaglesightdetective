@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Users, Cpu, Eye, Flag, ArrowRight } from 'lucide-react';
 import { company } from '@/lib/site';
 import PageHead from '@/components/PageHead';
+import AttachedCertificates from '@/components/AttachedCertificates';
 
 export const metadata = {
   title: 'About',
@@ -76,7 +77,7 @@ export default function AboutPage() {
             <h2>Registered and certified</h2>
             <p>
               Eaglesight Detective Services Private Limited is incorporated under the Companies Act, 2013 with the Ministry of
-              Corporate Affairs and certified to {company.iso}.
+              Corporate Affairs, certified to {company.iso} (Certificate No: {company.isoCertNo}) by Anglia Compliance Group UK, and GMP certified (Certificate No: {company.gmpCertNo}).
             </p>
             <dl className="facts" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 28 }}>
               <div className="fact"><dt>CIN</dt><dd style={{ fontSize: 16 }}>{company.cin}</dd></div>
@@ -84,8 +85,10 @@ export default function AboutPage() {
               <div className="fact" style={{ borderLeft: 0, borderTop: '1px solid var(--line)' }}><dt>State</dt><dd style={{ fontSize: 16 }}>Tamil Nadu, India</dd></div>
               <div className="fact" style={{ borderTop: '1px solid var(--line)' }}><dt>Headquarters</dt><dd style={{ fontSize: 16 }}>Pollachi, Coimbatore</dd></div>
             </dl>
-            <div className="hero-actions">
+            <div className="hero-actions" style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
               <Link href="/contact" className="btn btn-navy">Contact us <ArrowRight /></Link>
+              <a href="/certificates/certificate-25-07-21158235.pdf" target="_blank" rel="noopener noreferrer" className="btn btn-outline">ISO 27001 Certificate <ArrowRight /></a>
+              <a href="/verify" className="btn btn-gold">Verify Online <ArrowRight /></a>
             </div>
           </div>
           <div className="reveal">
@@ -97,6 +100,12 @@ export default function AboutPage() {
               style={{ width: '100%', maxWidth: 440, height: 'auto', margin: '0 auto', borderRadius: 6, boxShadow: 'var(--shadow-lg)', border: '1px solid var(--line)' }}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="section ivory" style={{ paddingTop: 30, paddingBottom: 40 }}>
+        <div className="container">
+          <AttachedCertificates />
         </div>
       </section>
 

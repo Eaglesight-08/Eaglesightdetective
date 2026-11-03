@@ -30,7 +30,7 @@ export const metadata = {
     template: '%s | Eaglesight Detective Services',
   },
   description:
-    'ISO/IEC 27032:2012 certified cyber security, digital forensics, investigation support and training from Pollachi, Coimbatore. Skilled detectives for a safer digital world.',
+    'ISO/IEC 27001:2022 certified cyber security, digital forensics, investigation support, verification services and training from Pollachi, Coimbatore. Skilled detectives for a safer digital world.',
   keywords: [
     'Cyber Detectives',
     'Digital Forensics India',
@@ -38,7 +38,7 @@ export const metadata = {
     'VAPT',
     'Incident Response',
     'Mobile Forensics',
-    'ISO 27032',
+    'ISO 27001', 'ISO 27032', 'Verification Services', 'ID Card Verification', 'Certificate Verification', 'Document Verification',
     'Coimbatore Cyber Crime',
     'Pollachi Cyber Security',
     'Section 65B',

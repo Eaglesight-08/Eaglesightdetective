@@ -145,7 +145,7 @@ h1, h2, h3, h4 {
 .header-inner { display: flex; align-items: center; justify-content: space-between; height: 84px; gap: 24px; }
 
 .brand { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-.brand img { width: 58px; height: 58px; border-radius: 50%; }
+.brand img { width: 58px; height: 58px; min-width: 58px; min-height: 58px; aspect-ratio: 1 / 1; flex-shrink: 0; object-fit: cover; border-radius: 50%; }
 .brand-divider { width: 1px; height: 44px; background: var(--gold-gradient); }
 .brand-text { display: flex; flex-direction: column; line-height: 1; }
 .brand-name { font-family: var(--font-serif), serif; font-weight: 800; font-size: 23px; color: var(--navy-800); letter-spacing: .01em; }
@@ -238,12 +238,45 @@ a.card:hover::before, .card.hover:hover::before { transform: scaleX(1); }
 .card p { color: var(--muted); font-size: 15.5px; }
 
 .icon-badge {
-  width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--navy-800); color: var(--gold-400); box-shadow: 0 0 0 4px var(--gold-50), 0 0 0 5px var(--gold-200);
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  min-height: 54px;
+  max-width: 54px;
+  max-height: 54px;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 54px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  background: var(--navy-800);
+  color: var(--gold-400);
+  box-shadow: 0 0 0 4px var(--gold-50), 0 0 0 5px var(--gold-200);
 }
-.icon-badge svg { width: 23px; height: 23px; }
-.icon-badge.sm { width: 42px; height: 42px; box-shadow: 0 0 0 3px var(--gold-50), 0 0 0 4px var(--gold-200); }
-.icon-badge.sm svg { width: 18px; height: 18px; }
+.icon-badge svg {
+  width: 23px;
+  height: 23px;
+  flex-shrink: 0;
+}
+.icon-badge.sm {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  max-width: 42px;
+  max-height: 42px;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 42px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px var(--gold-50), 0 0 0 4px var(--gold-200);
+}
+.icon-badge.sm svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
 
 .ticks { display: grid; gap: 10px; margin-top: 18px; }
 .ticks li { display: flex; gap: 10px; font-size: 15px; color: var(--body); }
@@ -542,7 +575,7 @@ a.contact-item:hover { border-color: var(--gold-400); }
 .brand:hover img { transform: rotate(-12deg) scale(1.05); }
 .site-header.scrolled .header-inner { height: 70px; }
 .header-inner { transition: height .3s var(--ease-out); }
-.site-header.scrolled .brand img { width: 48px; height: 48px; }
+.site-header.scrolled .brand img { width: 48px; height: 48px; min-width: 48px; min-height: 48px; aspect-ratio: 1 / 1; flex-shrink: 0; }
 .mobile-nav.open { animation: drop .4s var(--ease-out); }
 .mobile-nav.open a { opacity: 0; animation: rise .5s var(--ease-out) forwards; }
 .mobile-nav.open a:nth-child(2) { animation-delay: .04s; }

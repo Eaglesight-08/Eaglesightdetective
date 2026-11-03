@@ -7,7 +7,7 @@ import EnquiryForm from '@/components/EnquiryForm';
 
 export const metadata = {
   title: 'Services',
-  description: 'Cyber security & VAPT, digital forensics, investigation support, and ISO/IEC 27032 training & consulting.',
+  description: 'Cyber security & VAPT, digital forensics, investigation support, ISO/IEC 27001 consulting, and verification services.',
 };
 
 export default function ServicesPage() {
@@ -56,6 +56,12 @@ export default function ServicesPage() {
                 {s.id === 'training-consulting' && (
                   <div style={{ marginTop: 20 }}>
                     <Link href="/academy" className="link-arrow">Explore the Cyber Academy <ArrowRight /></Link>
+                  </div>
+                )}
+                {s.id === 'verification-services' && (
+                  <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                    <Link href="/verify" className="link-arrow">Open Online Verification Portal <ArrowRight /></Link>
+                    <a href="/certificates/certificate-25-07-21158235.pdf" target="_blank" rel="noopener noreferrer" className="link-arrow">Attached ISO 27001 Certificate (PDF) <ArrowRight /></a>
                   </div>
                 )}
               </div>

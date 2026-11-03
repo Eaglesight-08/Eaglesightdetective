@@ -6,12 +6,14 @@ import { company, services, workflow } from '@/lib/site';
 import PageHead from '@/components/PageHead';
 import ServiceIcon from '@/components/ServiceIcon';
 import EnquiryForm from '@/components/EnquiryForm';
+import AttachedCertificates from '@/components/AttachedCertificates';
 
 const images = {
   'cyber-security': '/images/command_center.jpg',
   'digital-forensics': '/images/forensics_lab.jpg',
   'investigation-support': '/images/command_center.jpg',
   'training-consulting': '/images/cyber_academy.jpg',
+  'verification-services': '/images/certificate_iso27001.jpg',
 };
 
 const whoFor = {
@@ -19,6 +21,7 @@ const whoFor = {
   'digital-forensics': ['Advocates and law firms preparing evidence', 'Companies investigating misconduct or fraud', 'Individuals who need chats or media recovered', 'Police and investigating agencies'],
   'investigation-support': ['Employers facing data theft or leaks', 'Boards and HR teams handling sensitive allegations', 'Executives worried about surveillance', 'Victims of extortion and online fraud'],
   'training-consulting': ['Leadership teams and boards', 'IT and compliance teams', 'Students and working professionals', 'Police, legal and government personnel'],
+  'verification-services': ['Corporates & HR teams verifying employee credentials & ID cards', 'Clients & authorities verifying Eaglesight detective badges & memberships', 'Educational institutes & recruiters verifying certificates', 'Advocates & legal counsel needing forensic document verification'],
 };
 
 // Every slug is prerendered from generateStaticParams, so a blocking route is fine.
@@ -66,6 +69,16 @@ export default async function ServiceDetailPage({ params }) {
               <h4>What you receive</h4>
               <ul>{s.deliverables.map((d) => <li key={d}><Check /> {d}</li>)}</ul>
             </div>
+            {s.id === 'verification-services' && (
+              <div style={{ marginTop: 24 }}>
+                <Link href="/verify" className="btn btn-navy">Launch Online Verification Portal <ArrowRight /></Link>
+              </div>
+            )}
+            {s.id === 'training-consulting' && (
+              <div style={{ marginTop: 24 }}>
+                <Link href="/academy" className="btn btn-navy">Explore Cyber Academy <ArrowRight /></Link>
+              </div>
+            )}
           </div>
           <div className="photo-frame reveal from-right">
             <div className="photo">
@@ -74,6 +87,14 @@ export default async function ServiceDetailPage({ params }) {
           </div>
         </div>
       </section>
+
+      {s.id === 'verification-services' && (
+        <section className="section" style={{ paddingTop: 10, paddingBottom: 30 }}>
+          <div className="container">
+            <AttachedCertificates />
+          </div>
+        </section>
+      )}
 
       <section className="section ivory">
         <div className="container">

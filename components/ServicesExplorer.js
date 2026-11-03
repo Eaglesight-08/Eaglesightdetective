@@ -12,6 +12,7 @@ const images = {
   'digital-forensics': '/images/forensics_lab.jpg',
   'investigation-support': '/images/command_center.jpg',
   'training-consulting': '/images/cyber_academy.jpg',
+  'verification-services': '/images/certificate_iso27001.jpg',
 };
 
 const AUTO_MS = 7000;

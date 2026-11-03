@@ -11,7 +11,10 @@ const defaultTopics = [
   'Corporate investigation / insider threat',
   'Cryptocurrency & cyber fraud tracing',
   'Bug sweeping (TSCM)',
-  'ISO/IEC 27032 or DPDP compliance',
+  'Membership ID card verification',
+  'Certificate & credential verification',
+  'Documents & forensic report verification',
+  'ISO/IEC 27001 or DPDP compliance',
   'Cyber Academy admission',
 ];
 
