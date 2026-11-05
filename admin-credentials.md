@@ -1,9 +1,9 @@
 ---
-username: "admin"
-password: "admin"
-passwordHash: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+username: "eaglesight_admin"
+password: "Eagle#Secure!2026$Investigate"
+passwordHash: "afc8ce001c719bd897bc0db6f2b90074cdff84fd4961cabe1bc75afd7ac08254"
 role: "SuperAdmin"
-updatedAt: "2026-11-05T05:46:00.000Z"
+updatedAt: "2026-11-05T06:12:00.000Z"
 ---
 
 # Eaglesight Detective Services - Admin Access Credentials
@@ -14,10 +14,10 @@ updatedAt: "2026-11-05T05:46:00.000Z"
 ---
 
 ## 1. Authorized Master Credentials
-- **Username**: admin
-- **Password**: admin
+- **Username**: eaglesight_admin
+- **Password**: Eagle#Secure!2026$Investigate
 - **Role**: SuperAdmin (Full Investigative Privileges)
-- **Last Modified**: 2026-11-05 05:46:00 UTC
+- **Last Modified**: 2026-11-05 06:12:00 UTC
 
 ---
 
@@ -28,4 +28,3 @@ updatedAt: "2026-11-05T05:46:00.000Z"
 
 ---
 *Maintained by Eaglesight Detective & Forensic Services Security Registry*
-
