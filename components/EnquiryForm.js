@@ -27,9 +27,11 @@ export default function EnquiryForm({
   submitLabel = 'Send enquiry',
 }) {
   const [submission, setSubmission] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     const f = new FormData(e.currentTarget);
     const data = {
       name: f.get('name'),
@@ -39,9 +41,27 @@ export default function EnquiryForm({
       message: f.get('message'),
     };
 
-    // Save into the client-side store (viewable in /admin)
-    const item = saveSubmission(data);
+    let item = null;
+    try {
+      const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        item = json.item || { id: json.id, ...data };
+      }
+    } catch (err) {
+      console.warn('API submission fallback:', err);
+    }
+
+    if (!item) {
+      item = saveSubmission(data);
+    }
+
     setSubmission(item);
+    setSubmitting(false);
 
     // Optional mailto trigger as secondary delivery
     const subject = `Website enquiry [${item.id}]: ${data.topic}`;
@@ -55,10 +75,8 @@ export default function EnquiryForm({
       data.message,
     ].join('\n');
 
-    // Attempt mailto in background
     try {
       const mailtoUrl = `mailto:${company.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      // trigger after small delay so UI updates cleanly
       setTimeout(() => {
         const link = document.createElement('a');
         link.href = mailtoUrl;

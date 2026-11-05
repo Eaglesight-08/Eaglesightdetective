@@ -16,6 +16,7 @@ import {
   resetToInitialSubmissions,
   generateMarkdownReport,
   downloadMarkdownFile,
+  downloadSingleMarkdownFile,
   downloadJsonFile,
   verifyAdminCredentials,
   checkIsAuthenticated,
@@ -47,24 +48,62 @@ export default function AdminPage() {
   const [modalNotes, setModalNotes] = useState('');
   const [modalStatus, setModalStatus] = useState('New');
   const [notesSaved, setNotesSaved] = useState(false);
+  const [rawMdContent, setRawMdContent] = useState('');
 
   // Password change state
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [passMsg, setPassMsg] = useState({ text: '', type: '' });
 
+  const loadSubmissions = async () => {
+    try {
+      const res = await fetch('/api/admin/submissions');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.submissions)) {
+          setSubmissions(json.submissions);
+          if (json.rawMarkdown) {
+            setRawMdContent(json.rawMarkdown);
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('API fetch warning:', err);
+    }
+    setSubmissions(getSubmissions());
+  };
+
   // Initial check
   useEffect(() => {
-    const auth = checkIsAuthenticated();
-    setIsAuth(auth);
-    if (auth) {
-      setSubmissions(getSubmissions());
+    async function initAuth() {
+      try {
+        const res = await fetch('/api/admin/check');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.authenticated) {
+            setIsAuth(true);
+            await loadSubmissions();
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Check auth warning:', err);
+      }
+
+      const clientAuth = checkIsAuthenticated();
+      setIsAuth(clientAuth);
+      if (clientAuth) {
+        await loadSubmissions();
+      }
+      setLoading(false);
     }
-    setLoading(false);
+    initAuth();
   }, []);
 
-  const refreshList = () => {
-    setSubmissions(getSubmissions());
+  const refreshList = async () => {
+    await loadSubmissions();
   };
 
   const handleLogin = async (e) => {
@@ -73,39 +112,87 @@ export default function AdminPage() {
     setLoginLoading(true);
 
     try {
-      const res = await verifyAdminCredentials(username, password);
-      if (res.success) {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (res.ok) {
         setIsAuth(true);
-        setSubmissions(getSubmissions());
+        await loadSubmissions();
+        setLoginLoading(false);
+        return;
+      }
+
+      // Check fallback
+      const fallbackRes = await verifyAdminCredentials(username, password);
+      if (fallbackRes.success) {
+        setIsAuth(true);
+        await loadSubmissions();
       } else {
-        setLoginError(res.error || 'Authentication failed.');
+        const errJson = await res.json().catch(() => ({}));
+        setLoginError(errJson.error || fallbackRes.error || 'Authentication failed.');
       }
     } catch {
-      setLoginError('Error verifying credentials.');
+      const fallbackRes = await verifyAdminCredentials(username, password);
+      if (fallbackRes.success) {
+        setIsAuth(true);
+        await loadSubmissions();
+      } else {
+        setLoginError('Error verifying credentials.');
+      }
     } finally {
       setLoginLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
     logoutAdmin();
     setIsAuth(false);
     setSelectedSubmission(null);
   };
 
-  const handleStatusChange = (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await fetch('/api/admin/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+    } catch (err) {
+      console.warn('Status patch warning:', err);
+    }
     updateSubmissionStatus(id, newStatus);
-    refreshList();
+    await refreshList();
     if (selectedSubmission && selectedSubmission.id === id) {
       setSelectedSubmission({ ...selectedSubmission, status: newStatus });
       setModalStatus(newStatus);
     }
   };
 
-  const handleSaveNotes = () => {
+  const handleSaveNotes = async () => {
     if (!selectedSubmission) return;
+    try {
+      await fetch('/api/admin/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: modalStatus,
+          notes: modalNotes,
+        }),
+      });
+    } catch (err) {
+      console.warn('Notes patch warning:', err);
+    }
     updateSubmissionStatus(selectedSubmission.id, modalStatus, modalNotes);
-    refreshList();
+    await refreshList();
     setSelectedSubmission({
       ...selectedSubmission,
       status: modalStatus,
@@ -115,19 +202,37 @@ export default function AdminPage() {
     setTimeout(() => setNotesSaved(false), 2000);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm(`Are you sure you want to delete inquiry ${id}?`)) {
+  const handleDelete = async (id) => {
+    if (window.confirm(`Are you sure you want to delete inquiry record ${id}?`)) {
+      try {
+        await fetch(`/api/admin/submissions?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.warn('Delete warning:', err);
+      }
       deleteSubmission(id);
-      refreshList();
+      await refreshList();
       if (selectedSubmission?.id === id) setSelectedSubmission(null);
     }
   };
 
   const handleCopyMarkdown = () => {
-    const md = generateMarkdownReport(submissions);
+    const md = rawMdContent || generateMarkdownReport(submissions);
     navigator.clipboard.writeText(md);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadMd = () => {
+    const md = rawMdContent || generateMarkdownReport(submissions);
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `submissions.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleChangePassword = async (e) => {
@@ -137,6 +242,26 @@ export default function AdminPage() {
       setPassMsg({ text: 'New passwords do not match.', type: 'error' });
       return;
     }
+
+    try {
+      const res = await fetch('/api/admin/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPass }),
+      });
+      if (res.ok) {
+        setPassMsg({
+          text: 'Admin credentials updated & stored into admin-credentials.md successfully!',
+          type: 'success',
+        });
+        setNewPass('');
+        setConfirmPass('');
+        return;
+      }
+    } catch (err) {
+      console.warn('API credentials update warning:', err);
+    }
+
     const res = await changeAdminPassword(newPass);
     if (res.success) {
       setPassMsg({ text: 'Admin password updated and hashed with SHA-256 successfully!', type: 'success' });
@@ -413,7 +538,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {filtered.map((s) => {
-                      const dateStr = new Date(s.createdAt).toLocaleDateString('en-IN', {
+                      const dateStr = new Date(s.date || s.createdAt || Date.now()).toLocaleDateString('en-IN', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',
@@ -508,21 +633,21 @@ export default function AdminPage() {
             <div className="md-view-box">
               <div className="md-header">
                 <div>
-                  <h4>Submissions Document (Markdown Format)</h4>
-                  <p>All form responses compiled into an official Markdown document.</p>
+                  <h4>Submissions Database (<code>submissions.md</code>)</h4>
+                  <p>Real-time contents of your Markdown database file stored on disk.</p>
                 </div>
                 <div className="md-actions">
                   <button type="button" onClick={handleCopyMarkdown} className="btn btn-outline btn-sm">
                     {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copied' : 'Copy Markdown'}
                   </button>
-                  <button type="button" onClick={() => downloadMarkdownFile(submissions)} className="btn btn-navy btn-sm">
-                    <Download size={14} /> Download .md File
+                  <button type="button" onClick={handleDownloadMd} className="btn btn-navy btn-sm">
+                    <Download size={14} /> Download submissions.md
                   </button>
                 </div>
               </div>
 
               <pre className="md-code-preview">
-                {generateMarkdownReport(submissions)}
+                {rawMdContent || generateMarkdownReport(submissions)}
               </pre>
             </div>
           </div>
@@ -595,33 +720,39 @@ export default function AdminPage() {
               </div>
 
               <div className="settings-card">
-                <h3>Data Management &amp; Diagnostics</h3>
-                <p>Restore default sample entries or export full encrypted backup.</p>
+                <h3>Offline Markdown File System Control</h3>
+                <p>All system access credentials and submitted inquiries are stored in standard Markdown (<code>.md</code>) files under your full control.</p>
 
                 <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ background: 'var(--navy-900)', border: '1px solid var(--line-gold)', borderRadius: 'var(--radius)', padding: '14px 18px', color: '#fff' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold-400)', marginBottom: 4 }}>
+                      📁 admin-credentials.md
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Stores active administrator username, password, SHA-256 hash, and authorization clearance level.
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--navy-900)', border: '1px solid var(--line-gold)', borderRadius: 'var(--radius)', padding: '14px 18px', color: '#fff' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold-400)', marginBottom: 4 }}>
+                      📁 submissions.md
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Central Markdown database file. Every inquiry submitted from the website forms is stored here in real-time.
+                    </div>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Reset all submissions back to the original sample entries?')) {
-                        resetToInitialSubmissions();
-                        refreshList();
-                      }
-                    }}
-                    className="btn btn-outline"
-                  >
-                    <RefreshCw size={15} /> Reset to Initial Sample Submissions
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadMarkdownFile(submissions)}
+                    onClick={handleDownloadMd}
                     className="btn btn-gold"
                   >
-                    <Download size={15} /> Export Complete .md Case Report
+                    <Download size={15} /> Export submissions.md File
                   </button>
                 </div>
 
                 <div style={{ marginTop: 28, fontSize: 13, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                  <b>Security Notice:</b> Login attempts are rate-limited. 5 consecutive failed attempts lock the portal for 10 minutes. Sessions automatically expire after 2 hours of inactivity.
+                  <b>Security Notice:</b> Admin authentication is verified server-side with HMAC-SHA256 encrypted cookies. You can also edit credentials directly inside <code>admin-credentials.md</code>.
                 </div>
               </div>
             </div>
@@ -638,16 +769,26 @@ export default function AdminPage() {
                 <span className="ref-tag">{selectedSubmission.id}</span>
                 <h3>{selectedSubmission.name}</h3>
                 <small className="time-sub">
-                  Submitted on {new Date(selectedSubmission.createdAt).toLocaleString('en-IN')}
+                  Submitted on {new Date(selectedSubmission.date || selectedSubmission.createdAt || Date.now()).toLocaleString('en-IN')}
                 </small>
               </div>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setSelectedSubmission(null)}
-              >
-                ✕
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => downloadSingleMarkdownFile(selectedSubmission)}
+                  className="btn btn-outline btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Download size={13} /> {selectedSubmission.id}.md
+                </button>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setSelectedSubmission(null)}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="admin-modal-body">
@@ -749,3 +890,4 @@ export default function AdminPage() {
     </div>
   );
 }
+
