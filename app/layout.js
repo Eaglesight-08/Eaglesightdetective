@@ -43,7 +43,17 @@ export const metadata = {
     'Pollachi Cyber Security',
     'Section 65B',
   ],
-  icons: { icon: '/images/eagle_logo_clean.png', apple: '/images/eagle_logo_clean.png' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/images/eagle_logo_clean.png', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/images/eagle_logo_clean.png' },
+    ],
+  },
   openGraph: {
     title: 'Eaglesight Detective Services | Cyber Detectives',
     description: 'People · Technology · Intelligence · A Safer Digital India.',
