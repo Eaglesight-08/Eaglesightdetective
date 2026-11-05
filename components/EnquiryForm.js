@@ -41,6 +41,13 @@ export default function EnquiryForm({
       message: f.get('message'),
     };
 
+    // Record the submission in Netlify Forms (must POST URL-encoded data to the static skeleton file).
+    const netlifyForm = fetch('/__forms.html', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(f).toString(),
+    }).catch((err) => console.warn('Netlify Forms submission failed:', err));
+
     let item = null;
     try {
       const res = await fetch('/api/submit', {
@@ -59,6 +66,8 @@ export default function EnquiryForm({
     if (!item) {
       item = saveSubmission(data);
     }
+
+    await netlifyForm;
 
     setSubmission(item);
     setSubmitting(false);
@@ -87,8 +96,9 @@ export default function EnquiryForm({
   }
 
   return (
-    <form className="form-card" onSubmit={onSubmit} name="enquiries" data-netlify="true">
+    <form className="form-card" onSubmit={onSubmit} name="enquiries">
       <input type="hidden" name="form-name" value="enquiries" />
+      <p hidden><label>Leave this empty: <input name="bot-field" tabIndex={-1} autoComplete="off" /></label></p>
       <h3>{title}</h3>
       <p>{intro}</p>
       <div className="form-row">
