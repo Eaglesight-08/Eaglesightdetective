@@ -2,5 +2,11 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  # GITHUB_REPO is the public "owner/repo" path (not a secret) and is used as a
+  # fallback in lib/markdown-db.js, so it legitimately appears in the server bundle.
+  # GITHUB_TOKEN remains protected by secrets scanning.
+  SECRETS_SCAN_OMIT_KEYS = "GITHUB_REPO"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
