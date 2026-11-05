@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8" /><title>Forms</title></head>
+  <body>
+    <!-- Static skeleton so Netlify Forms can detect the enquiry form at deploy time (Next.js Runtime v5). -->
+    <form name="enquiries" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="enquiries" />
+      <input name="bot-field" />
+      <input name="name" type="text" />
+      <input name="phone" type="tel" />
+      <input name="email" type="email" />
+      <input name="topic" type="text" />
+      <textarea name="message"></textarea>
+    </form>
+  </body>
+</html>
