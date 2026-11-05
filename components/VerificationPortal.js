@@ -153,8 +153,23 @@ export default function VerificationPortal({ initialTab = 'membership' }) {
     }
     setMemberQuery(q);
 
-    if (sampleMembers[q]) {
-      const m = sampleMembers[q];
+    let m = sampleMembers[q];
+
+    if (!m) {
+      try {
+        const res = await fetch(`/api/verify?id=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.member) {
+            m = json.member;
+          }
+        }
+      } catch (err) {
+        console.warn('API verify fetch notice:', err);
+      }
+    }
+
+    if (m) {
       setMemberResult(m);
       try {
         const url = `https://www.esdspvtltd.in/verify?id=${encodeURIComponent(m.id)}`;

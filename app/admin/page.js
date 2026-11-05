@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Lock, Key, ShieldCheck, Eye, EyeOff, LogOut, Download, Copy, Check,
   Search, Filter, Trash2, Edit3, Phone, Mail, MessageSquare, AlertCircle,
-  FileText, Code, Settings, RefreshCw, Plus, Clock, ExternalLink, UserCheck, FileCheck
+  FileText, Code, Settings, RefreshCw, Plus, Clock, ExternalLink, UserCheck, FileCheck, CheckCircle2
 } from 'lucide-react';
 import {
   getSubmissions,
@@ -49,6 +49,7 @@ export default function AdminPage() {
   const [modalStatus, setModalStatus] = useState('New');
   const [notesSaved, setNotesSaved] = useState(false);
   const [isEditingModal, setIsEditingModal] = useState(false);
+  const [showIdCardView, setShowIdCardView] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     phone: '',
@@ -190,6 +191,7 @@ export default function AdminPage() {
       message: s.message || '',
     });
     setIsEditingModal(false);
+    setShowIdCardView(isIdCard(s));
   };
 
   const handleSaveModal = async () => {
@@ -600,9 +602,10 @@ export default function AdminPage() {
                               type="button"
                               className="action-btn view"
                               onClick={() => handleOpenSubmission(s)}
-                              title="View and Edit Complete Details"
+                              title={isCardType ? 'View Official ID Card' : 'View and Edit Complete Details'}
+                              style={isCardType ? { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--navy-800)', color: 'var(--gold-400)', borderColor: 'var(--gold-500)' } : {}}
                             >
-                              View / Edit
+                              {isCardType ? <><UserCheck size={13} /> View ID Card</> : 'View / Edit'}
                             </button>
                             <button
                               type="button"
@@ -654,7 +657,16 @@ export default function AdminPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button
                   type="button"
-                  onClick={() => setIsEditingModal(!isEditingModal)}
+                  onClick={() => { setShowIdCardView(!showIdCardView); setIsEditingModal(false); }}
+                  className={`btn btn-sm ${showIdCardView ? 'btn-gold' : 'btn-outline'}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  title={showIdCardView ? 'Switch to Inquiry Details Form' : 'View Official Detective ID Card'}
+                >
+                  <UserCheck size={13} /> {showIdCardView ? 'Form View' : 'ID Card View'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsEditingModal(!isEditingModal); setShowIdCardView(false); }}
                   className={`btn btn-sm ${isEditingModal ? 'btn-navy' : 'btn-outline'}`}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   title={isEditingModal ? 'Cancel edit' : 'Edit client details and message'}
@@ -680,6 +692,101 @@ export default function AdminPage() {
             </div>
 
             <div className="admin-modal-body">
+              {showIdCardView && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy-900)' }}>
+                      Official Cyber Detective Credential Card:
+                    </span>
+                    <a
+                      href={`/verify?id=${encodeURIComponent(selectedSubmission.id)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <ExternalLink size={13} /> Open in Public /verify Portal
+                    </a>
+                  </div>
+
+                  <div className="detective-card" style={{ maxWidth: '100%', margin: '0 auto' }}>
+                    <div className="card-top">
+                      <div className="card-brand">
+                        <Image src="/images/eagle_logo_clean.png" alt="Seal" width={52} height={52} />
+                        <div>
+                          <div className="brand-tit">EAGLESIGHT DETECTIVE SERVICES</div>
+                          <div className="brand-sub-badge">CYBER INVESTIGATOR IDENTIFICATION</div>
+                        </div>
+                      </div>
+                      <div className="status-pill active">
+                        <CheckCircle2 size={14} /> {modalStatus === 'Resolved' ? 'ACTIVE & RESOLVED' : (modalStatus === 'In Progress' ? 'ACTIVE INVESTIGATION' : 'ACTIVE & VERIFIED')}
+                      </div>
+                    </div>
+
+                    <div className="card-body">
+                      <div className="card-photo-col">
+                        <div className="card-photo-placeholder">
+                          <ShieldCheck size={40} className="card-seal-icon" />
+                          <span>OFFICIAL SEAL</span>
+                        </div>
+                        <div className="card-cin">CIN: U62020TZ2026PTC041075</div>
+                      </div>
+
+                      <div className="card-details">
+                        <div className="det-row">
+                          <span className="det-label">Operative Name</span>
+                          <span className="det-val highlight">{selectedSubmission.name || 'Registered Operative'}</span>
+                        </div>
+                        <div className="det-grid">
+                          <div className="det-row">
+                            <span className="det-label">Membership / Badge ID</span>
+                            <span className="det-val mono">{selectedSubmission.id}</span>
+                          </div>
+                          <div className="det-row">
+                            <span className="det-label">Designation</span>
+                            <span className="det-val">{selectedSubmission.topic || 'Cyber Fraud & Field Investigator'}</span>
+                          </div>
+                          <div className="det-row">
+                            <span className="det-label">Assigned Practice</span>
+                            <span className="det-val">Special Investigations Desk</span>
+                          </div>
+                          <div className="det-row">
+                            <span className="det-label">Jurisdiction</span>
+                            <span className="det-val">Tamil Nadu & Pan-India</span>
+                          </div>
+                          <div className="det-row">
+                            <span className="det-label">Issued On</span>
+                            <span className="det-val">{new Date(selectedSubmission.date || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          <div className="det-row">
+                            <span className="det-label">Valid Through</span>
+                            <span className="det-val">09 Mar 2028</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="card-footer">
+                      <div className="card-hash">
+                        <span className="hash-label">Cryptographic Fingerprint:</span>
+                        <code>{selectedSubmission.id.toLowerCase()}-verified-hash-sig</code>
+                      </div>
+                      <div className="card-stamp" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <a
+                          href={`/verify?id=${encodeURIComponent(selectedSubmission.id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-gold btn-sm"
+                          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <UserCheck size={13} /> Verify Online
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="modal-section">
                 <div className="modal-grid-2">
                   <div>
