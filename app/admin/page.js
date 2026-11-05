@@ -204,6 +204,11 @@ export default function AdminPage() {
 
   const handleDelete = async (id) => {
     if (window.confirm(`Are you sure you want to delete inquiry record ${id}?`)) {
+      // Optimistic update: remove from UI instantly
+      setSubmissions((prev) => prev.filter((s) => s.id !== id));
+      if (selectedSubmission?.id === id) setSelectedSubmission(null);
+      deleteSubmission(id);
+
       try {
         await fetch(`/api/admin/submissions?id=${encodeURIComponent(id)}`, {
           method: 'DELETE',
@@ -211,9 +216,6 @@ export default function AdminPage() {
       } catch (err) {
         console.warn('Delete warning:', err);
       }
-      deleteSubmission(id);
-      await refreshList();
-      if (selectedSubmission?.id === id) setSelectedSubmission(null);
     }
   };
 
