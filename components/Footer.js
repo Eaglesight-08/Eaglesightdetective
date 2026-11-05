@@ -117,7 +117,7 @@ export default function Footer() {
 
       <div className="footer-bottom">
         <div className="container">
-          <span>© 2026 Eaglesight Detective Services Private Limited · CIN {company.cin}</span>
+          <span>© 2026 Eaglesight Detective Services Private Limited · CIN {company.cin} · <Link href="/admin" style={{ color: "inherit", opacity: 0.5, fontSize: "11px" }}>Staff Login</Link></span>
           <div className="mark">
             <b>EAGLESIGHT DETECTIVE SERVICES PRIVATE LIMITED</b>
             <span>CYBER DETECTIVES</span>

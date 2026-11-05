@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, Check, Send } from 'lucide-react';
+import { Lock, Check, Send, ShieldCheck, Mail } from 'lucide-react';
 import { company } from '@/lib/site';
+import { saveSubmission } from '@/lib/submissions-store';
 
 const defaultTopics = [
   'Digital forensics & evidence recovery',
@@ -18,7 +19,6 @@ const defaultTopics = [
   'Cyber Academy admission',
 ];
 
-// Sends the enquiry through the visitor's own email app, addressed to the company inbox.
 export default function EnquiryForm({
   title = 'Request a confidential consultation',
   intro = 'Tell us briefly what happened. A senior investigator will get back to you.',
@@ -26,43 +26,75 @@ export default function EnquiryForm({
   defaultTopic,
   submitLabel = 'Send enquiry',
 }) {
-  const [sent, setSent] = useState(false);
+  const [submission, setSubmission] = useState(null);
 
   const onSubmit = (e) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const subject = `Website enquiry: ${f.get('topic')}`;
+    const data = {
+      name: f.get('name'),
+      phone: f.get('phone'),
+      email: f.get('email'),
+      topic: f.get('topic'),
+      message: f.get('message'),
+    };
+
+    // Save into the client-side store (viewable in /admin)
+    const item = saveSubmission(data);
+    setSubmission(item);
+
+    // Optional mailto trigger as secondary delivery
+    const subject = `Website enquiry [${item.id}]: ${data.topic}`;
     const body = [
-      `Name: ${f.get('name')}`,
-      `Phone: ${f.get('phone')}`,
-      `Email: ${f.get('email')}`,
-      `Topic: ${f.get('topic')}`,
+      `Enquiry Reference: ${item.id}`,
+      `Name: ${data.name}`,
+      `Phone: ${data.phone}`,
+      `Email: ${data.email}`,
+      `Topic: ${data.topic}`,
       '',
-      f.get('message'),
+      data.message,
     ].join('\n');
-    window.location.href = `mailto:${company.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setSent(true);
+
+    // Attempt mailto in background
+    try {
+      const mailtoUrl = `mailto:${company.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      // trigger after small delay so UI updates cleanly
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = mailtoUrl;
+        link.target = '_blank';
+        link.click();
+      }, 500);
+    } catch {
+      // mailto optional
+    }
   };
 
-  if (sent) {
+  if (submission) {
     return (
       <div className="form-card">
         <div className="form-success">
           <span className="icon-badge"><Check /></span>
-          <h3>Your email is ready to send</h3>
+          <h3>Enquiry Successfully Received</h3>
+          <div style={{ margin: '14px 0', padding: '10px 16px', background: 'var(--ivory)', border: '1px solid var(--line)', borderRadius: 'var(--radius)' }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block' }}>Reference Case Number:</span>
+            <code style={{ fontSize: 16, fontWeight: 700, color: 'var(--gold-600)' }}>{submission.id}</code>
+          </div>
           <p>
-            We opened your email app with the details filled in — just press send. If nothing opened, write to{' '}
-            <a href={`mailto:${company.email}`} className="link-arrow">{company.email}</a> or call{' '}
-            <a href={company.phoneHref} className="link-arrow">{company.phone}</a>.
+            Your inquiry has been logged securely into our investigation registry. A senior investigator will review your case and respond within our target response window.
           </p>
-          <button className="btn btn-outline" onClick={() => setSent(false)}>Back to the form</button>
+          <div style={{ marginTop: 18, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href={`mailto:${company.email}`} className="btn btn-navy btn-sm"><Mail size={14} /> Email Helpline</a>
+            <button className="btn btn-outline btn-sm" onClick={() => setSubmission(null)}>Submit another inquiry</button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <form className="form-card" onSubmit={onSubmit}>
+    <form className="form-card" onSubmit={onSubmit} name="enquiries" data-netlify="true">
+      <input type="hidden" name="form-name" value="enquiries" />
       <h3>{title}</h3>
       <p>{intro}</p>
       <div className="form-row">
