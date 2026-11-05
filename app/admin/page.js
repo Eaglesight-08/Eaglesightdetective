@@ -48,6 +48,14 @@ export default function AdminPage() {
   const [modalNotes, setModalNotes] = useState('');
   const [modalStatus, setModalStatus] = useState('New');
   const [notesSaved, setNotesSaved] = useState(false);
+  const [isEditingModal, setIsEditingModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    topic: '',
+    message: '',
+  });
 
   const loadSubmissions = async () => {
     try {
@@ -170,36 +178,52 @@ export default function AdminPage() {
     updateSubmissionStatus(id, newStatus);
   };
 
-  const handleSaveNotes = async () => {
+  const handleOpenSubmission = (s) => {
+    setSelectedSubmission(s);
+    setModalNotes(s.notes || '');
+    setModalStatus(s.status || 'New');
+    setEditFormData({
+      name: s.name || '',
+      phone: s.phone || '',
+      email: s.email || '',
+      topic: s.topic || '',
+      message: s.message || '',
+    });
+    setIsEditingModal(false);
+  };
+
+  const handleSaveModal = async () => {
     if (!selectedSubmission) return;
     const id = selectedSubmission.id;
 
+    const updates = {
+      ...(isEditingModal ? editFormData : {}),
+      status: modalStatus,
+      notes: modalNotes,
+    };
+
     // Optimistic UI update
     setSubmissions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: modalStatus, notes: modalNotes } : s))
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
     );
     setSelectedSubmission((prev) => ({
       ...prev,
-      status: modalStatus,
-      notes: modalNotes,
+      ...updates,
     }));
     setNotesSaved(true);
-    setTimeout(() => setNotesSaved(false), 2000);
+    setIsEditingModal(false);
+    setTimeout(() => setNotesSaved(false), 2500);
 
     try {
       await fetch('/api/admin/submissions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id,
-          status: modalStatus,
-          notes: modalNotes,
-        }),
+        body: JSON.stringify({ id, ...updates }),
       });
     } catch (err) {
       console.warn('Notes patch warning:', err);
     }
-    updateSubmissionStatus(id, modalStatus, modalNotes);
+    updateSubmissionStatus(id, modalStatus, modalNotes, isEditingModal ? editFormData : {});
   };
 
   // Execute confirmed delete
@@ -575,14 +599,10 @@ export default function AdminPage() {
                             <button
                               type="button"
                               className="action-btn view"
-                              onClick={() => {
-                                setSelectedSubmission(s);
-                                setModalNotes(s.notes || '');
-                                setModalStatus(s.status || 'New');
-                              }}
-                              title="View Complete Details"
+                              onClick={() => handleOpenSubmission(s)}
+                              title="View and Edit Complete Details"
                             >
-                              View
+                              View / Edit
                             </button>
                             <button
                               type="button"
@@ -609,14 +629,38 @@ export default function AdminPage() {
         <div className="admin-modal-backdrop" onClick={() => setSelectedSubmission(null)}>
           <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-top">
-              <div className="modal-title-wrap">
+              <div className="modal-title-wrap" style={{ flex: 1 }}>
                 <span className="ref-tag">{selectedSubmission.id}</span>
-                <h3>{selectedSubmission.name}</h3>
+                {isEditingModal ? (
+                  <div style={{ marginTop: 6, maxWidth: 360 }}>
+                    <label style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                      Client Name
+                    </label>
+                    <input
+                      type="text"
+                      className="modal-input"
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      placeholder="Client Name"
+                    />
+                  </div>
+                ) : (
+                  <h3>{selectedSubmission.name}</h3>
+                )}
                 <small className="time-sub">
                   Submitted on {new Date(selectedSubmission.date || selectedSubmission.createdAt || Date.now()).toLocaleString('en-IN')}
                 </small>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingModal(!isEditingModal)}
+                  className={`btn btn-sm ${isEditingModal ? 'btn-navy' : 'btn-outline'}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  title={isEditingModal ? 'Cancel edit' : 'Edit client details and message'}
+                >
+                  <Edit3 size={13} /> {isEditingModal ? 'Cancel Edit' : 'Edit Details'}
+                </button>
                 <button
                   type="button"
                   onClick={() => downloadSingleMarkdownFile(selectedSubmission)}
@@ -640,35 +684,65 @@ export default function AdminPage() {
                 <div className="modal-grid-2">
                   <div>
                     <label className="modal-label">Phone Number</label>
-                    <div className="modal-val">
-                      {selectedSubmission.phone ? (
-                        <a href={`tel:${selectedSubmission.phone.replace(/\s+/g, '')}`} className="modal-contact-link">
-                          <Phone size={14} /> {selectedSubmission.phone}
-                        </a>
-                      ) : (
-                        <span style={{ color: 'var(--muted)' }}>Not provided</span>
-                      )}
-                    </div>
+                    {isEditingModal ? (
+                      <input
+                        type="text"
+                        className="modal-input"
+                        value={editFormData.phone}
+                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                        placeholder="+91..."
+                      />
+                    ) : (
+                      <div className="modal-val">
+                        {selectedSubmission.phone ? (
+                          <a href={`tel:${selectedSubmission.phone.replace(/\s+/g, '')}`} className="modal-contact-link">
+                            <Phone size={14} /> {selectedSubmission.phone}
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--muted)' }}>Not provided</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="modal-label">Email Address</label>
-                    <div className="modal-val">
-                      {selectedSubmission.email ? (
-                        <a href={`mailto:${selectedSubmission.email}`} className="modal-contact-link">
-                          <Mail size={14} /> {selectedSubmission.email}
-                        </a>
-                      ) : (
-                        <span style={{ color: 'var(--muted)' }}>Not provided</span>
-                      )}
-                    </div>
+                    {isEditingModal ? (
+                      <input
+                        type="email"
+                        className="modal-input"
+                        value={editFormData.email}
+                        onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                        placeholder="client@example.com"
+                      />
+                    ) : (
+                      <div className="modal-val">
+                        {selectedSubmission.email ? (
+                          <a href={`mailto:${selectedSubmission.email}`} className="modal-contact-link">
+                            <Mail size={14} /> {selectedSubmission.email}
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--muted)' }}>Not provided</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="modal-label">Inquiry Category / Topic</label>
-                    <div className="modal-val">
-                      <span className="topic-pill">{selectedSubmission.topic}</span>
-                    </div>
+                    {isEditingModal ? (
+                      <input
+                        type="text"
+                        className="modal-input"
+                        value={editFormData.topic}
+                        onChange={(e) => setEditFormData({ ...editFormData, topic: e.target.value })}
+                        placeholder="Topic / Service category"
+                      />
+                    ) : (
+                      <div className="modal-val">
+                        <span className="topic-pill">{selectedSubmission.topic}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -682,9 +756,19 @@ export default function AdminPage() {
 
               <div className="modal-section">
                 <label className="modal-label">Client Message / Description</label>
-                <div className="modal-message-box">
-                  {selectedSubmission.message || 'No description provided.'}
-                </div>
+                {isEditingModal ? (
+                  <textarea
+                    rows={4}
+                    className="modal-notes-area"
+                    value={editFormData.message}
+                    onChange={(e) => setEditFormData({ ...editFormData, message: e.target.value })}
+                    placeholder="Client message or description..."
+                  />
+                ) : (
+                  <div className="modal-message-box">
+                    {selectedSubmission.message || 'No description provided.'}
+                  </div>
+                )}
               </div>
 
               <div className="modal-section">
@@ -737,9 +821,9 @@ export default function AdminPage() {
                     className="modal-notes-area"
                   />
                   <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
-                    {notesSaved && <span style={{ color: '#1f7a37', fontSize: 13, fontWeight: 600 }}>✓ Notes saved!</span>}
-                    <button type="button" onClick={handleSaveNotes} className="btn btn-navy btn-sm">
-                      Save Case Notes
+                    {notesSaved && <span style={{ color: '#1f7a37', fontSize: 13, fontWeight: 600 }}>✓ Changes saved & committed to GitHub!</span>}
+                    <button type="button" onClick={handleSaveModal} className={`btn btn-sm ${isEditingModal ? 'btn-gold' : 'btn-navy'}`}>
+                      {isEditingModal ? 'Save All Changes & Sync' : 'Save Case Notes'}
                     </button>
                   </div>
                 </div>

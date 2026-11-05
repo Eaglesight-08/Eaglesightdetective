@@ -46,12 +46,13 @@ export async function PATCH(request) {
   }
 
   try {
-    const { id, status, notes } = await request.json();
+    const body = await request.json();
+    const { id, ...updates } = body;
     if (!id) {
       return NextResponse.json({ error: 'ID is required.' }, { status: 400 });
     }
 
-    const updated = await updateSubmissionInMd(id, { status, notes });
+    const updated = await updateSubmissionInMd(id, updates);
     return NextResponse.json({ success: true, submission: updated });
   } catch (err) {
     console.error('Error updating submission in markdown db:', err);
