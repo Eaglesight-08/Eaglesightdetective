@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import Image from 'next/image';
 import {
   ShieldCheck, Award, FileCheck, CheckCircle2, AlertCircle, Search,
@@ -123,9 +124,10 @@ const sampleDocs = {
 export default function VerificationPortal({ initialTab = 'membership' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Tab 1 state
-  const [memberQuery, setMemberQuery] = useState('ESD-2026-001');
-  const [memberResult, setMemberResult] = useState(sampleMembers['ESD-2026-001']);
+  // Tab 1 state (Starts empty, only shows card when searched)
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResult, setMemberResult] = useState(null);
+  const [memberQrUrl, setMemberQrUrl] = useState('');
   const [memberError, setMemberError] = useState('');
 
   // Tab 2 state
@@ -141,30 +143,51 @@ export default function VerificationPortal({ initialTab = 'membership' }) {
   const [fileName, setFileName] = useState('');
   const [copied, setCopied] = useState(false);
 
+  const verifyMemberId = async (rawId) => {
+    setMemberError('');
+    const q = (rawId || memberQuery).trim().toUpperCase();
+    if (!q) {
+      setMemberError('Please enter a Membership ID or Detective Badge Number.');
+      setMemberResult(null);
+      return;
+    }
+    setMemberQuery(q);
+
+    if (sampleMembers[q]) {
+      const m = sampleMembers[q];
+      setMemberResult(m);
+      try {
+        const url = `https://www.esdspvtltd.in/verify?id=${encodeURIComponent(m.id)}`;
+        const qr = await QRCode.toDataURL(url, {
+          width: 200,
+          margin: 1,
+          color: { dark: '#0b1530', light: '#ffffff' },
+        });
+        setMemberQrUrl(qr);
+      } catch (err) {
+        console.warn('QR error:', err);
+      }
+    } else {
+      setMemberResult(null);
+      setMemberError(`No registered detective or operative found under Badge ID "${q}". Please check the badge number or contact headquarters.`);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const idParam = params.get('id');
+      if (idParam) {
+        setActiveTab('membership');
+        verifyMemberId(idParam);
+      }
+    }
+  }, []);
+
   // Tab 1 search
   const handleMemberSearch = (e) => {
     e?.preventDefault();
-    setMemberError('');
-    const q = memberQuery.trim().toUpperCase();
-    if (!q) {
-      setMemberError('Please enter a Membership ID or Detective Badge Number.');
-      return;
-    }
-    if (sampleMembers[q]) {
-      setMemberResult(sampleMembers[q]);
-    } else {
-      setMemberResult({
-        name: 'Official Registered Member',
-        id: q,
-        role: 'Verified Cyber Detective / Associate',
-        division: 'Field Investigation & Evidence Practice',
-        status: 'ACTIVE & VERIFIED',
-        issued: 'Verified in MCA & Eaglesight Registry',
-        validUntil: 'Active Mandate',
-        jurisdiction: 'Tamil Nadu & Pan-India',
-        hash: 'SHA256:' + Array.from(q).map((c) => c.charCodeAt(0).toString(16)).join('') + '904f81c',
-      });
-    }
+    verifyMemberId(memberQuery);
   };
 
   // Tab 2 search
@@ -319,22 +342,37 @@ export default function VerificationPortal({ initialTab = 'membership' }) {
 
           {/* Quick pick chips */}
           <div className="verify-chips">
-            <span className="chips-label">Try sample IDs:</span>
+            <span className="chips-label">Sample registered badge IDs:</span>
             {Object.keys(sampleMembers).map((id) => (
               <button
                 key={id}
                 type="button"
                 className="chip-btn"
-                onClick={() => {
-                  setMemberQuery(id);
-                  setMemberResult(sampleMembers[id]);
-                  setMemberError('');
-                }}
+                onClick={() => verifyMemberId(id)}
               >
-                {id} ({sampleMembers[id].role.split(' ')[0]})
+                {id} ({sampleMembers[id].name.split(' ')[0]})
               </button>
             ))}
           </div>
+
+          {!memberResult && !memberError && (
+            <div className="id-card-empty-prompt" style={{
+              margin: '24px 0',
+              padding: '36px 20px',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: '1px dashed var(--line-gold)',
+              borderRadius: 'var(--radius)',
+              textAlign: 'center',
+            }}>
+              <UserCheck size={44} style={{ color: 'var(--gold-500)', margin: '0 auto 12px' }} />
+              <h4 style={{ fontFamily: 'var(--font-serif), serif', color: 'var(--navy-900)', fontSize: 18, marginBottom: 8 }}>
+                Investigator Credential Verification Form
+              </h4>
+              <p style={{ color: 'var(--muted)', maxWidth: 540, margin: '0 auto 16px', fontSize: 14 }}>
+                Enter an official Membership or Detective Badge ID in the search box above to inspect active operative credentials, biometric validity, and legal mandate.
+              </p>
+            </div>
+          )}
 
           {memberError && (
             <div className="verify-alert error">
@@ -344,6 +382,19 @@ export default function VerificationPortal({ initialTab = 'membership' }) {
 
           {memberResult && (
             <div className="id-card-display">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <span style={{ fontSize: 13, color: 'var(--navy-800)', fontWeight: 700 }}>
+                  Official Digital Investigator ID Card:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setMemberResult(null); setMemberQuery(''); }}
+                  className="btn btn-outline btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Search size={13} /> Verify Another Badge ID
+                </button>
+              </div>
               <div className="detective-card">
                 <div className="card-top">
                   <div className="card-brand">
@@ -406,9 +457,32 @@ export default function VerificationPortal({ initialTab = 'membership' }) {
                     <span className="hash-label">Cryptographic Fingerprint:</span>
                     <code>{memberResult.hash}</code>
                   </div>
-                  <div className="card-stamp">
-                    <QrCode size={36} />
-                    <span>MCA & ISO/IEC 27001 VERIFIED</span>
+                  <div className="card-stamp" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {memberQrUrl ? (
+                      <img
+                        src={memberQrUrl}
+                        alt="Scannable QR Code"
+                        width={64}
+                        height={64}
+                        style={{
+                          borderRadius: 6,
+                          background: '#ffffff',
+                          padding: 3,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                          display: 'block'
+                        }}
+                      />
+                    ) : (
+                      <QrCode size={36} />
+                    )}
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', color: '#fff' }}>
+                        SCAN WITH PHONE CAMERA
+                      </span>
+                      <span style={{ fontSize: 9, opacity: 0.85, color: 'var(--gold-400)' }}>
+                        LIVE MCA &amp; ISO 27001 REGISTRY
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

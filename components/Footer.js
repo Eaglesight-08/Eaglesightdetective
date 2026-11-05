@@ -83,7 +83,9 @@ export default function Footer() {
                 <Siren />
                 <div>
                   <b>Lost money to online fraud?</b>
-                  <span>Call the national helpline <a href="tel:1930">1930</a> immediately, then contact us.</span>
+                  <span>
+                    Call national helpline <a href="tel:1930" style={{ fontWeight: 700, color: '#ffb4ab', textDecoration: 'underline' }}>1930</a> immediately, then <Link href="/contact" style={{ color: 'var(--gold-400)', textDecoration: 'underline' }}>contact our cyber detectives</Link>.
+                  </span>
                 </div>
               </div>
             </div>

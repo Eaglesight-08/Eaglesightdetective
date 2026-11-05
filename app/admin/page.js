@@ -6,23 +6,19 @@ import Link from 'next/link';
 import {
   Lock, Key, ShieldCheck, Eye, EyeOff, LogOut, Download, Copy, Check,
   Search, Filter, Trash2, Edit3, Phone, Mail, MessageSquare, AlertCircle,
-  FileText, Code, Settings, RefreshCw, Plus, Clock, ExternalLink, UserCheck
+  FileText, Code, Settings, RefreshCw, Plus, Clock, ExternalLink, UserCheck, FileCheck
 } from 'lucide-react';
 import {
   getSubmissions,
   saveSubmission,
   updateSubmissionStatus,
   deleteSubmission,
-  resetToInitialSubmissions,
-  generateMarkdownReport,
-  downloadMarkdownFile,
   downloadSingleMarkdownFile,
+  downloadMarkdownFile,
   downloadJsonFile,
   verifyAdminCredentials,
   checkIsAuthenticated,
   logoutAdmin,
-  changeAdminPassword,
-  getLoginAttempts,
 } from '@/lib/submissions-store';
 
 export default function AdminPage() {
@@ -36,24 +32,22 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Dashboard States
+  // Dashboard Category Tab State ('all' | 'services' | 'id-card' | 'documents')
+  const [activeCategory, setActiveCategory] = useState('all');
+
+  // Submissions and Filtering
   const [submissions, setSubmissions] = useState([]);
-  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'markdown' | 'json' | 'settings'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [copied, setCopied] = useState(false);
 
-  // Notes state in modal
+  // Delete Confirmation Modal State
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Notes state in detail modal
   const [modalNotes, setModalNotes] = useState('');
   const [modalStatus, setModalStatus] = useState('New');
   const [notesSaved, setNotesSaved] = useState(false);
-  const [rawMdContent, setRawMdContent] = useState('');
-
-  // Password change state
-  const [newPass, setNewPass] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
-  const [passMsg, setPassMsg] = useState({ text: '', type: '' });
 
   const loadSubmissions = async () => {
     try {
@@ -62,9 +56,6 @@ export default function AdminPage() {
         const json = await res.json();
         if (Array.isArray(json.submissions)) {
           setSubmissions(json.submissions);
-          if (json.rawMarkdown) {
-            setRawMdContent(json.rawMarkdown);
-          }
           return;
         }
       }
@@ -125,14 +116,13 @@ export default function AdminPage() {
         return;
       }
 
-      // Check fallback
       const fallbackRes = await verifyAdminCredentials(username, password);
       if (fallbackRes.success) {
         setIsAuth(true);
         await loadSubmissions();
       } else {
         const errJson = await res.json().catch(() => ({}));
-        setLoginError(errJson.error || fallbackRes.error || 'Authentication failed.');
+        setLoginError(errJson.error || fallbackRes.error || 'Invalid username or password.');
       }
     } catch {
       const fallbackRes = await verifyAdminCredentials(username, password);
@@ -159,6 +149,15 @@ export default function AdminPage() {
   };
 
   const handleStatusChange = async (id, newStatus) => {
+    // Optimistic UI update
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s))
+    );
+    if (selectedSubmission && selectedSubmission.id === id) {
+      setSelectedSubmission((prev) => ({ ...prev, status: newStatus }));
+      setModalStatus(newStatus);
+    }
+
     try {
       await fetch('/api/admin/submissions', {
         method: 'PATCH',
@@ -169,21 +168,30 @@ export default function AdminPage() {
       console.warn('Status patch warning:', err);
     }
     updateSubmissionStatus(id, newStatus);
-    await refreshList();
-    if (selectedSubmission && selectedSubmission.id === id) {
-      setSelectedSubmission({ ...selectedSubmission, status: newStatus });
-      setModalStatus(newStatus);
-    }
   };
 
   const handleSaveNotes = async () => {
     if (!selectedSubmission) return;
+    const id = selectedSubmission.id;
+
+    // Optimistic UI update
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status: modalStatus, notes: modalNotes } : s))
+    );
+    setSelectedSubmission((prev) => ({
+      ...prev,
+      status: modalStatus,
+      notes: modalNotes,
+    }));
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 2000);
+
     try {
       await fetch('/api/admin/submissions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: selectedSubmission.id,
+          id,
           status: modalStatus,
           notes: modalNotes,
         }),
@@ -191,133 +199,96 @@ export default function AdminPage() {
     } catch (err) {
       console.warn('Notes patch warning:', err);
     }
-    updateSubmissionStatus(selectedSubmission.id, modalStatus, modalNotes);
-    await refreshList();
-    setSelectedSubmission({
-      ...selectedSubmission,
-      status: modalStatus,
-      notes: modalNotes,
-    });
-    setNotesSaved(true);
-    setTimeout(() => setNotesSaved(false), 2000);
+    updateSubmissionStatus(id, modalStatus, modalNotes);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm(`Are you sure you want to delete inquiry record ${id}?`)) {
-      // Optimistic update: remove from UI instantly
-      setSubmissions((prev) => prev.filter((s) => s.id !== id));
-      if (selectedSubmission?.id === id) setSelectedSubmission(null);
-      deleteSubmission(id);
+  // Execute confirmed delete
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
 
-      try {
-        await fetch(`/api/admin/submissions?id=${encodeURIComponent(id)}`, {
-          method: 'DELETE',
-        });
-      } catch (err) {
-        console.warn('Delete warning:', err);
-      }
+    // Optimistic UI removal
+    setSubmissions((prev) => prev.filter((s) => s.id !== id));
+    if (selectedSubmission?.id === id) {
+      setSelectedSubmission(null);
     }
-  };
-
-  const handleCopyMarkdown = () => {
-    const md = rawMdContent || generateMarkdownReport(submissions);
-    navigator.clipboard.writeText(md);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownloadMd = () => {
-    const md = rawMdContent || generateMarkdownReport(submissions);
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `submissions.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setPassMsg({ text: '', type: '' });
-    if (newPass !== confirmPass) {
-      setPassMsg({ text: 'New passwords do not match.', type: 'error' });
-      return;
-    }
+    deleteSubmission(id);
 
     try {
-      const res = await fetch('/api/admin/credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPass }),
+      await fetch(`/api/admin/submissions?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
       });
-      if (res.ok) {
-        setPassMsg({
-          text: 'Admin credentials updated & stored into admin-credentials.md successfully!',
-          type: 'success',
-        });
-        setNewPass('');
-        setConfirmPass('');
-        return;
-      }
     } catch (err) {
-      console.warn('API credentials update warning:', err);
-    }
-
-    const res = await changeAdminPassword(newPass);
-    if (res.success) {
-      setPassMsg({ text: 'Admin password updated and hashed with SHA-256 successfully!', type: 'success' });
-      setNewPass('');
-      setConfirmPass('');
-    } else {
-      setPassMsg({ text: res.error || 'Failed to update password.', type: 'error' });
+      console.warn('Delete warning:', err);
     }
   };
 
-  // Filtered submissions
+  // Category classification helpers
+  const isIdCard = (s) => {
+    const t = (s.topic || '').toLowerCase();
+    return t.includes('id card') || t.includes('membership') || t.includes('badge');
+  };
+
+  const isDocument = (s) => {
+    const t = (s.topic || '').toLowerCase();
+    return t.includes('document') || t.includes('certificate') || t.includes('65b');
+  };
+
+  const isService = (s) => !isIdCard(s) && !isDocument(s);
+
+  // Filtered submissions based on active category, status, and search query
   const filtered = submissions.filter((s) => {
+    // Category separation
+    if (activeCategory === 'services' && !isService(s)) return false;
+    if (activeCategory === 'id-card' && !isIdCard(s)) return false;
+    if (activeCategory === 'documents' && !isDocument(s)) return false;
+
+    // Status filter
     const matchesStatus = statusFilter === 'All' || s.status === statusFilter;
+
+    // Search query
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
-      s.name.toLowerCase().includes(q) ||
-      s.email.toLowerCase().includes(q) ||
-      s.phone.toLowerCase().includes(q) ||
-      s.topic.toLowerCase().includes(q) ||
-      s.id.toLowerCase().includes(q) ||
-      s.message.toLowerCase().includes(q);
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q) ||
+      (s.phone || '').toLowerCase().includes(q) ||
+      (s.topic || '').toLowerCase().includes(q) ||
+      (s.id || '').toLowerCase().includes(q) ||
+      (s.message || '').toLowerCase().includes(q);
+
     return matchesStatus && matchesSearch;
   });
 
   const counts = {
     total: submissions.length,
+    services: submissions.filter(isService).length,
+    idCard: submissions.filter(isIdCard).length,
+    documents: submissions.filter(isDocument).length,
     new: submissions.filter((s) => s.status === 'New').length,
     inProgress: submissions.filter((s) => s.status === 'In Progress').length,
-    contacted: submissions.filter((s) => s.status === 'Contacted').length,
-    resolved: submissions.filter((s) => s.status === 'Resolved').length,
+    resolved: submissions.filter((s) => s.status === 'Resolved' || s.status === 'Contacted').length,
   };
 
   if (loading) {
     return (
       <div className="admin-loading-screen">
         <div className="admin-spinner" />
-        <p>Loading secure portal...</p>
+        <p>Loading secure investigation desk...</p>
       </div>
     );
   }
 
   // ----------------------------------------------------------------------
-  // VIEW 1: SECURE LOGIN SCREEN
+  // VIEW 1: ADMIN LOGIN SCREEN (Unauthenticated)
   // ----------------------------------------------------------------------
   if (!isAuth) {
-    const attempts = getLoginAttempts();
     return (
       <div className="admin-login-wrap">
         <div className="admin-login-card">
-          <div className="admin-login-header">
-            <div className="admin-logo-circle">
-              <Image src="/images/eagle_logo_clean.png" alt="Seal" width={64} height={64} priority />
-            </div>
+          <div className="admin-login-brand">
+            <Image src="/images/eagle_logo_clean.png" alt="Eaglesight Seal" width={72} height={72} />
             <h2>EAGLESIGHT DETECTIVE SERVICES</h2>
             <div className="admin-login-sub">CYBER INVESTIGATION DESK · SECURE ADMIN</div>
           </div>
@@ -432,326 +403,205 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Category Separation Tabs (All / Services / ID Card / Documents) */}
         <div className="admin-nav-tabs">
           <button
             type="button"
-            className={`atab-btn${activeTab === 'list' ? ' active' : ''}`}
-            onClick={() => setActiveTab('list')}
+            className={`atab-btn${activeCategory === 'all' ? ' active' : ''}`}
+            onClick={() => setActiveCategory('all')}
           >
-            <FileText size={16} /> Submissions List ({counts.total})
+            <FileText size={16} /> All Inquiries ({counts.total})
           </button>
           <button
             type="button"
-            className={`atab-btn${activeTab === 'markdown' ? ' active' : ''}`}
-            onClick={() => setActiveTab('markdown')}
+            className={`atab-btn${activeCategory === 'services' ? ' active' : ''}`}
+            onClick={() => setActiveCategory('services')}
           >
-            <Edit3 size={16} /> Markdown (.md) View & Export
+            <ShieldCheck size={16} /> Service Enquiries ({counts.services})
           </button>
           <button
             type="button"
-            className={`atab-btn${activeTab === 'json' ? ' active' : ''}`}
-            onClick={() => setActiveTab('json')}
+            className={`atab-btn${activeCategory === 'id-card' ? ' active' : ''}`}
+            onClick={() => setActiveCategory('id-card')}
           >
-            <Code size={16} /> JSON Data & Backup
+            <UserCheck size={16} /> ID Card Verifications ({counts.idCard})
           </button>
           <button
             type="button"
-            className={`atab-btn${activeTab === 'settings' ? ' active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+            className={`atab-btn${activeCategory === 'documents' ? ' active' : ''}`}
+            onClick={() => setActiveCategory('documents')}
           >
-            <Settings size={16} /> Security & Password
+            <FileCheck size={16} /> Document Verifications ({counts.documents})
           </button>
         </div>
 
-        {/* ----------------- TAB 1: SUBMISSIONS LIST ----------------- */}
-        {activeTab === 'list' && (
-          <div className="admin-tab-pane">
-            <div className="admin-toolbar">
-              <div className="admin-search-input">
-                <Search size={16} className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search by client name, email, phone, topic, or ref ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              <div className="status-filter-pills">
-                {['All', 'New', 'In Progress', 'Contacted', 'Resolved'].map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    className={`filter-pill${statusFilter === st ? ' active' : ''}`}
-                    onClick={() => setStatusFilter(st)}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-
-              <div className="admin-toolbar-actions">
-                <button type="button" onClick={() => downloadMarkdownFile(submissions)} className="btn btn-outline btn-sm">
-                  <Download size={14} /> Export .md
-                </button>
-                <button type="button" onClick={() => downloadJsonFile(submissions)} className="btn btn-outline btn-sm">
-                  <Download size={14} /> Export .json
-                </button>
-                <button type="button" onClick={refreshList} className="btn btn-light btn-sm" title="Refresh">
-                  <RefreshCw size={14} />
-                </button>
-              </div>
+        {/* Content Table Area */}
+        <div className="admin-tab-pane">
+          <div className="admin-toolbar">
+            <div className="admin-search-input">
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search by client name, email, phone, topic, or ref ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
 
-            {filtered.length === 0 ? (
-              <div className="admin-empty-state">
-                <FileText size={42} />
-                <h3>No Submissions Found</h3>
-                <p>No records match your search or filter.</p>
+            <div className="status-filter-pills">
+              {['All', 'New', 'In Progress', 'Contacted', 'Resolved'].map((st) => (
                 <button
+                  key={st}
                   type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => { setSearchQuery(''); setStatusFilter('All'); }}
+                  className={`filter-pill${statusFilter === st ? ' active' : ''}`}
+                  onClick={() => setStatusFilter(st)}
                 >
-                  Clear Filters
+                  {st}
                 </button>
-              </div>
-            ) : (
-              <div className="admin-table-frame">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Ref ID &amp; Date</th>
-                      <th>Client Details</th>
-                      <th>Inquiry Topic</th>
-                      <th>Message Preview</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((s) => {
-                      const dateStr = new Date(s.date || s.createdAt || Date.now()).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      });
-                      return (
-                        <tr key={s.id}>
-                          <td>
-                            <span className="ref-tag">{s.id}</span>
-                            <div className="time-sub">{dateStr}</div>
-                            <div className="source-sub">{s.page}</div>
-                          </td>
-                          <td>
-                            <div className="client-name">{s.name}</div>
-                            <div className="contact-links">
+              ))}
+            </div>
+
+            <div className="admin-toolbar-actions">
+              <button type="button" onClick={() => downloadMarkdownFile(submissions)} className="btn btn-outline btn-sm">
+                <Download size={14} /> Export .md
+              </button>
+              <button type="button" onClick={() => downloadJsonFile(submissions)} className="btn btn-outline btn-sm">
+                <Download size={14} /> Export .json
+              </button>
+              <button type="button" onClick={refreshList} className="btn btn-light btn-sm" title="Refresh">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="admin-empty-state">
+              <FileText size={42} />
+              <h3>No Submissions Found</h3>
+              <p>
+                {activeCategory !== 'all'
+                  ? `No inquiries recorded under the "${activeCategory.toUpperCase()}" category.`
+                  : 'No records match your active search or filter.'}
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => { setSearchQuery(''); setStatusFilter('All'); setActiveCategory('all'); }}
+              >
+                Reset All Filters
+              </button>
+            </div>
+          ) : (
+            <div className="admin-table-frame">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Ref ID &amp; Date</th>
+                    <th>Client Details</th>
+                    <th>Inquiry Category / Topic</th>
+                    <th>Message Preview</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((s) => {
+                    const dateStr = new Date(s.date || s.createdAt || Date.now()).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+                    const isCardType = isIdCard(s);
+                    const isDocType = isDocument(s);
+
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          <span className="ref-tag">{s.id}</span>
+                          <div className="time-sub">{dateStr}</div>
+                          {s.page && <div className="source-sub">{s.page}</div>}
+                        </td>
+                        <td>
+                          <div className="client-name">{s.name}</div>
+                          <div className="contact-links">
+                            {s.phone && (
                               <a href={`tel:${s.phone.replace(/\s+/g, '')}`} className="clink phone" title="Call">
                                 <Phone size={12} /> {s.phone}
                               </a>
+                            )}
+                            {s.email && (
                               <a href={`mailto:${s.email}`} className="clink email" title="Email">
                                 <Mail size={12} /> {s.email}
                               </a>
-                              {s.phone && (
-                                <a
-                                  href={`https://wa.me/${s.phone.replace(/[^0-9]/g, '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="clink whatsapp"
-                                  title="WhatsApp"
-                                >
-                                  WhatsApp
-                                </a>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <span className="topic-pill">{s.topic}</span>
-                          </td>
-                          <td>
-                            <p className="msg-preview">{s.message}</p>
-                            {s.notes && <div className="notes-preview"><b>Note:</b> {s.notes}</div>}
-                          </td>
-                          <td>
-                            <select
-                              value={s.status}
-                              onChange={(e) => handleStatusChange(s.id, e.target.value)}
-                              className={`status-select ${s.status.toLowerCase().replace(/\s+/g, '-')}`}
+                            )}
+                            {s.phone && (
+                              <a
+                                href={`https://wa.me/${s.phone.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="clink whatsapp"
+                                title="WhatsApp"
+                              >
+                                WhatsApp
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`topic-pill${isCardType ? ' gold' : isDocType ? ' purple' : ''}`}>
+                            {s.topic}
+                          </span>
+                        </td>
+                        <td>
+                          <p className="msg-preview">{s.message}</p>
+                          {s.notes && <div className="notes-preview"><b>Note:</b> {s.notes}</div>}
+                        </td>
+                        <td>
+                          <select
+                            value={s.status}
+                            onChange={(e) => handleStatusChange(s.id, e.target.value)}
+                            className={`status-select ${(s.status || 'new').toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            <option value="New">🟡 New</option>
+                            <option value="In Progress">🟣 In Progress</option>
+                            <option value="Contacted">🔵 Contacted</option>
+                            <option value="Resolved">🟢 Resolved</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="row-actions">
+                            <button
+                              type="button"
+                              className="action-btn view"
+                              onClick={() => {
+                                setSelectedSubmission(s);
+                                setModalNotes(s.notes || '');
+                                setModalStatus(s.status || 'New');
+                              }}
+                              title="View Complete Details"
                             >
-                              <option value="New">🟡 New</option>
-                              <option value="In Progress">🟣 In Progress</option>
-                              <option value="Contacted">🔵 Contacted</option>
-                              <option value="Resolved">🟢 Resolved</option>
-                            </select>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div className="row-actions">
-                              <button
-                                type="button"
-                                className="action-btn view"
-                                onClick={() => {
-                                  setSelectedSubmission(s);
-                                  setModalNotes(s.notes || '');
-                                  setModalStatus(s.status || 'New');
-                                }}
-                                title="View Complete Details"
-                              >
-                                View
-                              </button>
-                              <button
-                                type="button"
-                                className="action-btn delete"
-                                onClick={() => handleDelete(s.id)}
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ----------------- TAB 2: MARKDOWN (.MD) VIEW ----------------- */}
-        {activeTab === 'markdown' && (
-          <div className="admin-tab-pane">
-            <div className="md-view-box">
-              <div className="md-header">
-                <div>
-                  <h4>Submissions Database (<code>submissions.md</code>)</h4>
-                  <p>Real-time contents of your Markdown database file stored on disk.</p>
-                </div>
-                <div className="md-actions">
-                  <button type="button" onClick={handleCopyMarkdown} className="btn btn-outline btn-sm">
-                    {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copied' : 'Copy Markdown'}
-                  </button>
-                  <button type="button" onClick={handleDownloadMd} className="btn btn-navy btn-sm">
-                    <Download size={14} /> Download submissions.md
-                  </button>
-                </div>
-              </div>
-
-              <pre className="md-code-preview">
-                {rawMdContent || generateMarkdownReport(submissions)}
-              </pre>
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              className="action-btn delete"
+                              onClick={() => setDeleteTarget(s)}
+                              title="Delete this case"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-        )}
-
-        {/* ----------------- TAB 3: JSON DATA VIEW ----------------- */}
-        {activeTab === 'json' && (
-          <div className="admin-tab-pane">
-            <div className="md-view-box">
-              <div className="md-header">
-                <div>
-                  <h4>Raw JSON Submissions Array</h4>
-                  <p>Direct JSON data storage. You can download or backup this file anytime.</p>
-                </div>
-                <div className="md-actions">
-                  <button type="button" onClick={() => downloadJsonFile(submissions)} className="btn btn-navy btn-sm">
-                    <Download size={14} /> Download submissions.json
-                  </button>
-                </div>
-              </div>
-
-              <pre className="md-code-preview">
-                {JSON.stringify(submissions, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
-
-        {/* ----------------- TAB 4: SECURITY & SETTINGS ----------------- */}
-        {activeTab === 'settings' && (
-          <div className="admin-tab-pane">
-            <div className="settings-grid">
-              <div className="settings-card">
-                <h3>Change Admin Password</h3>
-                <p>Updates the SHA-256 cryptographic hash used to authenticate this dashboard.</p>
-
-                <form onSubmit={handleChangePassword} style={{ marginTop: 20 }}>
-                  <div className="admin-field">
-                    <label>New Password</label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Minimum 5 characters"
-                      value={newPass}
-                      onChange={(e) => setNewPass(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="admin-field">
-                    <label>Confirm New Password</label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Repeat new password"
-                      value={confirmPass}
-                      onChange={(e) => setConfirmPass(e.target.value)}
-                    />
-                  </div>
-
-                  {passMsg.text && (
-                    <div className={`admin-alert ${passMsg.type}`}>
-                      {passMsg.text}
-                    </div>
-                  )}
-
-                  <button type="submit" className="btn btn-navy" style={{ marginTop: 10 }}>
-                    <Key size={15} /> Update Admin Password
-                  </button>
-                </form>
-              </div>
-
-              <div className="settings-card">
-                <h3>Offline Markdown File System Control</h3>
-                <p>All system access credentials and submitted inquiries are stored in standard Markdown (<code>.md</code>) files under your full control.</p>
-
-                <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ background: 'var(--navy-900)', border: '1px solid var(--line-gold)', borderRadius: 'var(--radius)', padding: '14px 18px', color: '#fff' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold-400)', marginBottom: 4 }}>
-                      📁 admin-credentials.md
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      Stores active administrator username, password, SHA-256 hash, and authorization clearance level.
-                    </div>
-                  </div>
-
-                  <div style={{ background: 'var(--navy-900)', border: '1px solid var(--line-gold)', borderRadius: 'var(--radius)', padding: '14px 18px', color: '#fff' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold-400)', marginBottom: 4 }}>
-                      📁 submissions.md
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      Central Markdown database file. Every inquiry submitted from the website forms is stored here in real-time.
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleDownloadMd}
-                    className="btn btn-gold"
-                  >
-                    <Download size={15} /> Export submissions.md File
-                  </button>
-                </div>
-
-                <div style={{ marginTop: 28, fontSize: 13, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                  <b>Security Notice:</b> Admin authentication is verified server-side with HMAC-SHA256 encrypted cookies. You can also edit credentials directly inside <code>admin-credentials.md</code>.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
 
       {/* ----------------- SUBMISSION DETAIL MODAL ----------------- */}
@@ -791,32 +641,40 @@ export default function AdminPage() {
                   <div>
                     <label className="modal-label">Phone Number</label>
                     <div className="modal-val">
-                      <a href={`tel:${selectedSubmission.phone.replace(/\s+/g, '')}`} className="modal-contact-link">
-                        <Phone size={14} /> {selectedSubmission.phone}
-                      </a>
+                      {selectedSubmission.phone ? (
+                        <a href={`tel:${selectedSubmission.phone.replace(/\s+/g, '')}`} className="modal-contact-link">
+                          <Phone size={14} /> {selectedSubmission.phone}
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--muted)' }}>Not provided</span>
+                      )}
                     </div>
                   </div>
 
                   <div>
                     <label className="modal-label">Email Address</label>
                     <div className="modal-val">
-                      <a href={`mailto:${selectedSubmission.email}`} className="modal-contact-link">
-                        <Mail size={14} /> {selectedSubmission.email}
-                      </a>
+                      {selectedSubmission.email ? (
+                        <a href={`mailto:${selectedSubmission.email}`} className="modal-contact-link">
+                          <Mail size={14} /> {selectedSubmission.email}
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--muted)' }}>Not provided</span>
+                      )}
                     </div>
                   </div>
 
                   <div>
-                    <label className="modal-label">Inquiry Topic</label>
+                    <label className="modal-label">Inquiry Category / Topic</label>
                     <div className="modal-val">
                       <span className="topic-pill">{selectedSubmission.topic}</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="modal-label">Submitted From Page</label>
+                    <label className="modal-label">Reference ID</label>
                     <div className="modal-val">
-                      <code>{selectedSubmission.page}</code>
+                      <code>{selectedSubmission.id}</code>
                     </div>
                   </div>
                 </div>
@@ -825,7 +683,7 @@ export default function AdminPage() {
               <div className="modal-section">
                 <label className="modal-label">Client Message / Description</label>
                 <div className="modal-message-box">
-                  {selectedSubmission.message}
+                  {selectedSubmission.message || 'No description provided.'}
                 </div>
               </div>
 
@@ -845,18 +703,27 @@ export default function AdminPage() {
                     </select>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
                     {selectedSubmission.phone && (
                       <a
                         href={`https://wa.me/${selectedSubmission.phone.replace(/[^0-9]/g, '')}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-outline btn-block"
-                        style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                        className="btn btn-outline"
+                        style={{ flex: 1, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                       >
-                        <MessageSquare size={15} color="#25D366" /> Chat on WhatsApp
+                        <MessageSquare size={15} color="#25D366" /> WhatsApp
                       </a>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(selectedSubmission)}
+                      className="btn btn-outline"
+                      style={{ height: 42, color: '#dc2626', borderColor: '#fca5a5', display: 'flex', alignItems: 'center', gap: 6 }}
+                      title="Delete this inquiry"
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
                   </div>
                 </div>
 
@@ -881,7 +748,56 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ----------------- DEDICATED DELETE CONFIRMATION MODAL ----------------- */}
+      {deleteTarget && (
+        <div className="admin-modal-backdrop" onClick={() => setDeleteTarget(null)}>
+          <div className="admin-modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-top" style={{ background: '#7f1d1d' }}>
+              <div className="modal-title-wrap">
+                <span className="ref-tag" style={{ background: '#991b1b', color: '#fff' }}>{deleteTarget.id}</span>
+                <h3 style={{ color: '#fff' }}>Confirm Record Deletion</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setDeleteTarget(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="admin-modal-body" style={{ padding: '24px' }}>
+              <p style={{ fontSize: '15px', color: 'var(--navy-900)', margin: '0 0 16px', lineHeight: 1.5 }}>
+                Are you sure you want to permanently delete case inquiry <b>{deleteTarget.id}</b> for <b>{deleteTarget.name}</b>?
+              </p>
+
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 16px', color: '#991b1b', fontSize: '13px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <AlertCircle size={20} style={{ flexShrink: 0 }} />
+                <span>This action cannot be undone. The case file will be permanently removed from your active database.</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setDeleteTarget(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  style={{ background: '#dc2626', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none' }}
+                  onClick={handleConfirmDelete}
+                >
+                  <Trash2 size={14} /> Yes, Delete Case
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
