@@ -62,30 +62,6 @@ export default function EnquiryForm({
 
     setSubmission(item);
     setSubmitting(false);
-
-    // Optional mailto trigger as secondary delivery
-    const subject = `Website enquiry [${item.id}]: ${data.topic}`;
-    const body = [
-      `Enquiry Reference: ${item.id}`,
-      `Name: ${data.name}`,
-      `Phone: ${data.phone}`,
-      `Email: ${data.email}`,
-      `Topic: ${data.topic}`,
-      '',
-      data.message,
-    ].join('\n');
-
-    try {
-      const mailtoUrl = `mailto:${company.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      setTimeout(() => {
-        const link = document.createElement('a');
-        link.href = mailtoUrl;
-        link.target = '_blank';
-        link.click();
-      }, 500);
-    } catch {
-      // mailto optional
-    }
   };
 
   if (submission) {
@@ -139,7 +115,9 @@ export default function EnquiryForm({
         <label htmlFor="ef-message">Brief description</label>
         <textarea id="ef-message" name="message" required placeholder="What happened, when, and what you need from us." />
       </div>
-      <button type="submit" className="btn btn-navy btn-block"><Send /> {submitLabel}</button>
+      <button type="submit" className="btn btn-navy btn-block" disabled={submitting}>
+        <Send /> {submitting ? 'Submitting...' : submitLabel}
+      </button>
       <div className="form-note"><Lock /> Every enquiry is handled in strict confidence.</div>
     </form>
   );
