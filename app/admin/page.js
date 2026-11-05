@@ -29,9 +29,9 @@ export default function AdminPage() {
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Login Form States
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin');
+  // Login Form States (empty by default, requires manual entry)
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -330,8 +330,8 @@ export default function AdminPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
-                  autoComplete="username"
+                  placeholder="Enter username"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -345,8 +345,8 @@ export default function AdminPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
+                  placeholder="Enter password"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -369,14 +369,6 @@ export default function AdminPage() {
               <Lock size={16} /> {loginLoading ? 'Authenticating...' : 'Sign In to Admin Dashboard'}
             </button>
           </form>
-
-          <div className="admin-login-help">
-            <ShieldCheck size={16} color="var(--gold-500)" />
-            <div>
-              <span>Default Credentials:</span>
-              <code>User: admin &nbsp;|&nbsp; Password: admin</code>
-            </div>
-          </div>
 
           <div className="admin-back-link">
             <Link href="/">← Return to Public Website</Link>
